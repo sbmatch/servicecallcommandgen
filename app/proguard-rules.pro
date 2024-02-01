@@ -20,4 +20,6 @@
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
 
--keep class com.ma.servicecallcommandgenerate.MainActivity
+-keep public class com.ma.servicecallcommandgenerate.app_process.Main {
+      public static void main(java.lang.String[]);
+}

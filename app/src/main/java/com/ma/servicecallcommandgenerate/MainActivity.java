@@ -191,7 +191,7 @@ public class MainActivity extends AppCompatActivity {
                                 System.out.println("generate command: " + s);
                                 ClipData data = ClipData.newPlainText("", s);
                                 ServiceManager.getClipboardManager().setPrimaryClip(data);
-                                Toast.makeText(requireContext(), s + "", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(requireContext(), s, Toast.LENGTH_SHORT).show();
                                 return m.getName() + " " + Arrays.asList(m.getParameterTypes());
                             }
                         }

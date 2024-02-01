@@ -67,6 +67,10 @@ public final class ServiceManager {
         return new PackageManager(getService("package", "android.content.pm.IPackageManager"));
     }
 
+    public static WifiManager getWifiManager(){
+        return new WifiManager(getService("wifi","android.net.wifi.IWifiManager"));
+    }
+
     public static Object getAppRunningControlManager(){
         try {
             return ReflectUtil.callStaticObjectMethod(Class.forName("miui.security.AppRunningControlManager"), "getInstance");
