@@ -54,7 +54,7 @@ public class MainActivity extends AppCompatActivity {
 
     public static class ServiceCallTool extends PreferenceFragmentCompat implements Preference.OnPreferenceChangeListener{
         PreferenceScreen screen;
-        static MultiJarClassLoader loader = MultiJarClassLoader.getInstance();
+        MultiJarClassLoader loader = MultiJarClassLoader.getInstance();
         @Override
         public void onCreatePreferences(@Nullable Bundle savedInstanceState, @Nullable String rootKey) {
 
@@ -75,24 +75,10 @@ public class MainActivity extends AppCompatActivity {
             serviceNameList.setOnPreferenceChangeListener(this);
             category.addPreference(serviceNameList);
 
-            SimpleMenuPreference methodLists = new SimpleMenuPreference(requireContext());
-            methodLists.setTitle("请选择方法名");
-            methodLists.setKey("method_list");
-            methodLists.setIconSpaceReserved(false);
-            methodLists.setCopyingEnabled(true);
-            methodLists.setEntries(new CharSequence[0]);
-            methodLists.setEntryValues(new CharSequence[0]);
-            methodLists.setOnPreferenceClickListener(preference -> {
-                if (((SimpleMenuPreference) preference).getEntries().length == 0)
-                    Toast.makeText(requireContext(), "请先选择系统服务类", Toast.LENGTH_SHORT).show();
-                return true;
-            });
-            category.addPreference(methodLists);
-
             setPreferenceScreen(screen);
         }
 
-        public static HashMap<String, String> getServiceNameByServiceManager = new HashMap<String,String>(){{
+        public HashMap<String, String> getServiceNameByServiceManager = new HashMap<String,String>(){{
             for (String s : ServiceManager.listServices()){
                 try {
                     IBinder binder = ServiceManager.getService(s);
@@ -109,7 +95,7 @@ public class MainActivity extends AppCompatActivity {
         *
         * @param types 用于检查方法的参数类型
         * */
-        public static boolean allParametersOfType(Method method, Class<?>... types) {
+        public boolean allParametersOfType(Method method, Class<?>... types) {
             // 获取方法的所有参数类型
             Class<?>[] parameterTypes = method.getParameterTypes();
             // 遍历每个参数类型，检查是否都在传入的类型中
@@ -129,7 +115,7 @@ public class MainActivity extends AppCompatActivity {
             return true;
         }
 
-        public static boolean isClassExists(String className) {
+        public boolean isClassExists(String className) {
             try {
                 loader.loadClass(className);
                 return true;
@@ -140,24 +126,27 @@ public class MainActivity extends AppCompatActivity {
 
         /**
         *
-        * @param clz 获取所有符合条件的方法
+        * @param className 系统服务类
         * */
-        public static ArrayMap<String, String> getMethodFieldValueBySystemService(String clz){
+        public ArrayMap<String, String> getMethodFieldValueBySystemService(String className){
+            ArrayMap<String, String> arrayMap = new ArrayMap<>();
+
             try {
-                ArrayMap<String, String> arrayMap = new ArrayMap<>();
+                Class<?> clz = loader.loadClass(className);
+                Class<?> stubClass = loader.loadClass(className + "$Stub");
 
-                for (Method method : loader.loadClass(clz).getDeclaredMethods()) {
+                for (Method method : clz.getDeclaredMethods()) {
                     method.setAccessible(true);
-
                     if (allParametersOfType(method, String.class, boolean.class, int.class, IBinder.class, IInterface.class)) {
-                        for (Field field : loader.loadClass(clz + "$Stub").getDeclaredFields()) {
+                        for (Field field : stubClass.getDeclaredFields()) {
                             if (field.getName().equals("TRANSACTION_" + method.getName())) {
                                 field.setAccessible(true);
-                                arrayMap.put(field.get(null)+" "+field.getName().split("TRANSACTION_")[1], String.valueOf(field.get(null)));
+                                arrayMap.put(field.get(null) + " " + field.getName().split("TRANSACTION_")[1], String.valueOf(field.get(null)));
                             }
                         }
                     }
                 }
+
                 return arrayMap;
             }catch (Throwable e){
                 throw new RuntimeException(e);
@@ -168,17 +157,28 @@ public class MainActivity extends AppCompatActivity {
         public boolean onPreferenceChange(@NonNull Preference preference, Object newValue) {
 
             String systemServiceName = getServiceNameByServiceManager.get(newValue);
-            if (systemServiceName != null) {
-                SimpleMenuPreference p2 = screen.findPreference("method_list");
-                p2.setEntries(getMethodFieldValueBySystemService(systemServiceName).keySet().toArray(new CharSequence[0]));
-                p2.setEntryValues(getMethodFieldValueBySystemService(systemServiceName).values().toArray(new CharSequence[0]));
-                p2.setSummaryProvider(preference1 -> {
-                    try {
-                        for (Method m : loader.loadClass(systemServiceName + "$Default").getDeclaredMethods()) {
 
-                            if (m.getName().equals(((SimpleMenuPreference) preference1).getEntry().toString().split(" ")[1])) {
+            if (systemServiceName != null) {
+                SimpleMenuPreference methodLists = preference.getParent().findPreference("method_list");
+                if (methodLists == null) methodLists = new SimpleMenuPreference(preference.getContext());
+                methodLists.setTitle("请选择方法名");
+                methodLists.setKey("method_list");
+                methodLists.setIconSpaceReserved(false);
+                methodLists.setCopyingEnabled(true);
+                methodLists.setEntries(getMethodFieldValueBySystemService(systemServiceName).keySet().toArray(new CharSequence[0]));
+                methodLists.setEntryValues(getMethodFieldValueBySystemService(systemServiceName).values().toArray(new CharSequence[0]));
+                methodLists.setOnPreferenceChangeListener((preference1, newValue1) -> {
+                    try {
+                        Method[] methods = loader.loadClass(systemServiceName + "$Default").getDeclaredMethods();
+
+                        for (Method method : methods) {
+
+                            if (method.getName().equals(((SimpleMenuPreference) preference1).getEntry().toString().split(" ")[1])) {
+
+                                preference1.setSummary(method.getName() + " " + Arrays.asList(method.getParameterTypes()));
+
                                 StringBuilder stringBuilder = new StringBuilder();
-                                for (Class<?> clz : m.getParameterTypes()) {
+                                for (Class<?> clz : method.getParameterTypes()) {
                                     if (clz.equals(String.class)) stringBuilder.append(" s16 ");
                                     if (clz.equals(boolean.class)) stringBuilder.append(" i32 ");
                                     if (clz.equals(int.class)) stringBuilder.append(" i32 ");
@@ -187,20 +187,22 @@ public class MainActivity extends AppCompatActivity {
                                     if (IInterface.class.isAssignableFrom(clz))
                                         stringBuilder.append(" null ");
                                 }
-                                String s = "service call " + newValue + " " + ((SimpleMenuPreference) preference1).getValue() + " " + stringBuilder;
+
+                                String s = "service call " +newValue+" " + newValue1 + " " + stringBuilder;
                                 System.out.println("generate command: " + s);
                                 ClipData data = ClipData.newPlainText("", s);
                                 ServiceManager.getClipboardManager().setPrimaryClip(data);
                                 Toast.makeText(requireContext(), s, Toast.LENGTH_SHORT).show();
-                                return m.getName() + " " + Arrays.asList(m.getParameterTypes());
+
                             }
                         }
-                    } catch (NullPointerException | ClassNotFoundException ignored) {
-                    }
-                    return null;
+                    } catch (NullPointerException | ClassNotFoundException ignored) {}
+                    return true;
                 });
-            }
 
+                preference.getParent().addPreference(methodLists);
+
+            }
 
             return true;
         }

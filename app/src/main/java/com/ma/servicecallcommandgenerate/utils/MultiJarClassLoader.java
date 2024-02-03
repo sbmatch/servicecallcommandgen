@@ -29,7 +29,7 @@ public class MultiJarClassLoader extends ClassLoader {
     }
 
     public void addJar(String jarPath) {
-        System.out.println("add jarPath "+jarPath);
+
         DexClassLoader dexClassLoader = new DexClassLoader(
                 jarPath,
                 null,
