@@ -93,4 +93,28 @@ public class ReflectUtil {
             declaredField.set(obj, newValue);
         } catch (Throwable e) { throw new RuntimeException(e); }
     }
+
+    public static Method[] getObjectMethods(String clsName){
+        try {
+            return Class.forName(clsName, false, MultiJarClassLoader.getInstance()).getDeclaredMethods();
+        }catch (ClassNotFoundException e){throw new RuntimeException(e);}
+    }
+
+    public static Method getObjectMethod(Class<?> cls, String methodName){
+        for (Method method : cls.getDeclaredMethods()){
+            if (method.getName().equals(methodName)){
+                return method;
+            }
+        }
+        return null;
+    }
+
+    public static Method getObjectMethod(String clsName, String methodName){
+        for (Method method : getObjectMethods(clsName)){
+            if (method.getName().equals(methodName)){
+                return method;
+            }
+        }
+        return null;
+    }
 }

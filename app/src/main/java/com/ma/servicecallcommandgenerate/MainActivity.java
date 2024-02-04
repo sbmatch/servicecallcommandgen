@@ -35,6 +35,8 @@ import java.lang.reflect.Parameter;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import rikka.preference.SimpleMenuPreference;
@@ -167,21 +169,26 @@ public class MainActivity extends AppCompatActivity {
                 methodLists.setCopyingEnabled(true);
                 methodLists.setEntries(getMethodFieldValueBySystemService(systemServiceName).keySet().toArray(new CharSequence[0]));
                 methodLists.setEntryValues(getMethodFieldValueBySystemService(systemServiceName).values().toArray(new CharSequence[0]));
+                methodLists.setSummaryProvider(preference12 -> {
+                    try {
+                        for (Map.Entry<String, String> entry : getMethodFieldValueBySystemService(systemServiceName).entrySet()) {
+                            if (Objects.equals(entry.getValue(), ((SimpleMenuPreference) preference12).getValue())) {
+                                return entry.getKey().split(" ")[1]+" "+Arrays.toString(ReflectUtil.getObjectMethod(systemServiceName + "$Default", entry.getKey().split(" ")[1]).getParameterTypes());
+                            }
+                        }
+                    }catch (Throwable e){e.printStackTrace();}
+                    return null;
+                });
                 methodLists.setOnPreferenceChangeListener((preference1, newValue1) -> {
                     try {
-                        Method[] methods = loader.loadClass(systemServiceName + "$Default").getDeclaredMethods();
+                        for (Method method : ReflectUtil.getObjectMethods(systemServiceName + "$Default")) {
 
-                        for (Method method : methods) {
-
-                            if (method.getName().equals(((SimpleMenuPreference) preference1).getEntry().toString().split(" ")[1])) {
-
-                                preference1.setSummary(method.getName() + " " + Arrays.asList(method.getParameterTypes()));
-
+                            if (method.getName().contentEquals(preference1.getSummary().toString().split(" ")[1])) {
                                 StringBuilder stringBuilder = new StringBuilder();
                                 for (Class<?> clz : method.getParameterTypes()) {
                                     if (clz.equals(String.class)) stringBuilder.append(" s16 ");
-                                    if (clz.equals(boolean.class)) stringBuilder.append(" i32 ");
-                                    if (clz.equals(int.class)) stringBuilder.append(" i32 ");
+                                    if (clz.equals(boolean.class)) stringBuilder.append(" i32 0");
+                                    if (clz.equals(int.class)) stringBuilder.append(" i32 0");
                                     if (IBinder.class.isAssignableFrom(clz))
                                         stringBuilder.append(" null ");
                                     if (IInterface.class.isAssignableFrom(clz))
@@ -189,14 +196,12 @@ public class MainActivity extends AppCompatActivity {
                                 }
 
                                 String s = "service call " +newValue+" " + newValue1 + " " + stringBuilder;
-                                System.out.println("generate command: " + s);
-                                ClipData data = ClipData.newPlainText("", s);
-                                ServiceManager.getClipboardManager().setPrimaryClip(data);
+                                ServiceManager.getClipboardManager().setPrimaryClip(ClipData.newPlainText("", s));
                                 Toast.makeText(requireContext(), s, Toast.LENGTH_SHORT).show();
-
+                                break;
                             }
                         }
-                    } catch (NullPointerException | ClassNotFoundException ignored) {}
+                    } catch (NullPointerException ignored) {}
                     return true;
                 });
 
