@@ -24,6 +24,7 @@ import android.os.RemoteException;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import com.ma.servicecallcommandgenerate.utils.ClipboardManager;
 import com.ma.servicecallcommandgenerate.utils.MultiJarClassLoader;
 import com.ma.servicecallcommandgenerate.utils.ReflectUtil;
 import com.ma.servicecallcommandgenerate.utils.ServiceManager;
@@ -57,6 +58,7 @@ public class MainActivity extends AppCompatActivity {
     public static class ServiceCallTool extends PreferenceFragmentCompat implements Preference.OnPreferenceChangeListener{
         PreferenceScreen screen;
         MultiJarClassLoader loader = MultiJarClassLoader.getInstance();
+        ClipboardManager clipboardManager = ServiceManager.getClipboardManager();
         @Override
         public void onCreatePreferences(@Nullable Bundle savedInstanceState, @Nullable String rootKey) {
 
@@ -183,7 +185,7 @@ public class MainActivity extends AppCompatActivity {
                     try {
                         for (Method method : ReflectUtil.getObjectMethods(systemServiceName + "$Default")) {
 
-                            if (method.getName().contentEquals(preference1.getSummary().toString().split(" ")[1])) {
+                            if (method.getName().contentEquals(preference1.getSummary().toString().split(" ")[0])) {
                                 StringBuilder stringBuilder = new StringBuilder();
                                 for (Class<?> clz : method.getParameterTypes()) {
                                     if (clz.equals(String.class)) stringBuilder.append(" s16 ");
@@ -195,9 +197,8 @@ public class MainActivity extends AppCompatActivity {
                                         stringBuilder.append(" null ");
                                 }
 
-                                String s = "service call " +newValue+" " + newValue1 + " " + stringBuilder;
-                                ServiceManager.getClipboardManager().setPrimaryClip(ClipData.newPlainText("", s));
-                                Toast.makeText(requireContext(), s, Toast.LENGTH_SHORT).show();
+                                ClipData clipData = ClipData.newPlainText("codeText", "service call " +newValue+" " + newValue1 + " " + stringBuilder);
+                                clipboardManager.setPrimaryClip(clipData);
                                 break;
                             }
                         }
